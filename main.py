@@ -213,63 +213,6 @@ def load_css():
             text-align: center;
         }
         
-        /* ── Mobile responsiveness for prediction cards ── */
-        @media (max-width: 768px) {
-            .prediction-card {
-                padding: 16px 12px;
-                border-radius: 14px;
-            }
-
-            /* Stack away / VS / home vertically on small screens */
-            .pred-matchup-row {
-                flex-direction: column !important;
-                gap: 8px;
-            }
-
-            .pred-matchup-row > div {
-                flex: unset !important;
-                width: 100% !important;
-            }
-
-            /* Shrink the big VS text */
-            .pred-vs-text {
-                font-size: 2rem !important;
-            }
-
-            /* Shrink team score font */
-            .team-score {
-                font-size: 1.8rem !important;
-            }
-
-            /* Metrics grid: 2 columns instead of 5 on mobile */
-            .pred-metrics-grid {
-                grid-template-columns: repeat(2, 1fr) !important;
-                gap: 8px !important;
-            }
-
-            .metric-container {
-                padding: 12px 8px;
-                border-radius: 10px;
-            }
-
-            .metric-value {
-                font-size: 1.4rem !important;
-            }
-
-            .metric-label {
-                font-size: 0.75rem;
-            }
-
-            /* Win probability bar already fluid — just ensure padding */
-            .pred-prob-bar {
-                margin: 8px 0 14px !important;
-            }
-
-            .app-title {
-                font-size: 2.2rem !important;
-            }
-        }
-
         /* Animations */
         @keyframes pulse {
             0% { transform: scale(1); }
@@ -312,7 +255,11 @@ def initialize_session_state():
         'data_collector': None,
         'feature_engineer': None,
         'model': None,
-        'ui_manager': None
+        'ui_manager': None,
+        # Per-session hyperparameter previews — never written to shared model or disk
+        'session_n_estimators': 100,
+        'session_max_depth': 7,
+        'session_learning_rate': 0.1,
     }
     
     for key, default_value in required_keys.items():
@@ -641,14 +588,14 @@ def show_predictions_page():
                 with st.container():
                     st.markdown(
                         f'<div class="prediction-card">'
-                        f'<div class="pred-matchup-row" style="display:flex;justify-content:space-between;align-items:center;">'
+                        f'<div style="display:flex;justify-content:space-between;align-items:center;">'
                         f'<div style="text-align:center;flex:1;">'
                         f'<h2 style="{away_name_style}">{away_team}{trophy_away}</h2>'
                         f'<div class="team-score">{away_score:.1f}{away_adj_html}</div>'
                         f'<p style="color:#666;">Away &nbsp;·&nbsp; {away_win_pct}</p>'
                         f'</div>'
                         f'<div style="text-align:center;flex:0.5;">'
-                        f'<h1 class="pred-vs-text" style="font-size:4rem;color:#667eea;">VS</h1>'
+                        f'<h1 style="font-size:4rem;color:#667eea;">VS</h1>'
                         f'<div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:5px 15px;border-radius:50px;color:white;">{game_time}</div>'
                         f'<div style="margin-top:8px;">{star_html}</div>'
                         f'<div style="font-size:0.75rem;color:#888;margin-top:2px;">{star_label} Conviction</div>'
@@ -661,11 +608,11 @@ def show_predictions_page():
                         f'<p style="color:#666;">Home &nbsp;·&nbsp; {home_win_pct}</p>'
                         f'</div>'
                         f'</div>'
-                        f'<div class="pred-prob-bar" style="margin:12px 0 20px;height:8px;border-radius:4px;background:#eee;overflow:hidden;display:flex;">'
+                        f'<div style="margin:12px 0 20px;height:8px;border-radius:4px;background:#eee;overflow:hidden;display:flex;">'
                         f'<div style="width:{away_bar_w};background:#fa709a;"></div>'
                         f'<div style="width:{home_bar_w};background:#43e97b;"></div>'
                         f'</div>'
-                        f'<div class="pred-metrics-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:15px;margin-top:10px;">'
+                        f'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:15px;margin-top:10px;">'
                         f'<div class="metric-container"><div class="metric-value">{pred_total:.1f}</div><div class="metric-label">Blended Total</div></div>'
                         f'<div class="metric-container"><div class="metric-value" style="font-size:1.4rem;">{direct_str}</div><div class="metric-label">Model Total</div></div>'
                         f'<div class="metric-container"><div class="metric-value" style="font-size:1.4rem;">{sum_str}</div><div class="metric-label">H+A Sum</div></div>'
@@ -871,72 +818,111 @@ def show_data_management_page():
         st.dataframe(cache_df, use_container_width=True)
 
 def show_settings_page():
-    """Display settings page"""
+    """Display settings page — safe for multi-user Streamlit Cloud hosting."""
     st.markdown("### ⚙️ Settings")
 
-    # ── Manual Retrain ────────────────────────────────────────────────────
-    st.markdown("""
-    <div class="analytics-card">
-        <h4>🤖 Model Retraining</h4>
-    """, unsafe_allow_html=True)
-    st.write("Manually retrain the model with the latest cached data. This clears today's predictions so fresh ones are generated afterwards.")
-    if st.button("🔁 Retrain Model Now", key="manual_retrain"):
-        # Clear today's cached predictions so they're regenerated after retrain
-        today_str = datetime.now().strftime('%Y-%m-%d')
-        predictions_cache_file = os.path.join('cache', f'predictions_{today_str}.csv')
-        if os.path.exists(predictions_cache_file):
-            os.remove(predictions_cache_file)
-        st.session_state.today_predictions = None
-        with st.spinner("Retraining model — this may take a few minutes..."):
-            initialize_system()
-        st.session_state['needs_retrain'] = False
-    st.markdown("</div>", unsafe_allow_html=True)
+    # ── Multi-user safety notice ──────────────────────────────────────────
+    st.info(
+        "ℹ️ **Shared app notice:** This app is hosted on Streamlit Cloud and may have "
+        "multiple simultaneous users. Model hyperparameter changes below are "
+        "**session-only** — they apply only to your current browser tab and do not "
+        "affect other users or the shared trained model. Retraining is restricted to "
+        "the app owner to prevent one person's changes from overwriting everyone's model."
+    )
 
     st.markdown("---")
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.markdown("""
         <div class="analytics-card">
-            <h4>🔧 Model Settings</h4>
+            <h4>🔧 Model Settings (Your Session Only)</h4>
         """, unsafe_allow_html=True)
-        
-        # Model hyperparameters
-        n_estimators = st.slider("Number of Estimators", 50, 300, 100, 10)
-        max_depth = st.slider("Max Depth", 3, 15, 7)
-        learning_rate = st.slider("Learning Rate", 0.01, 0.3, 0.1, 0.01)
-        
-        if st.button("Save Model Settings"):
-            st.session_state.model.update_hyperparameters({
-                'n_estimators': n_estimators,
-                'max_depth': max_depth,
-                'learning_rate': learning_rate
-            })
-            st.success("✅ Model settings updated!")
-        
+
+        st.caption(
+            "These values are stored in your session only. They will reset when you "
+            "close this tab and have no effect on the shared trained model or other users."
+        )
+
+        # Default to whatever this user saved earlier in the session
+        n_estimators = st.slider(
+            "Number of Estimators", 50, 300,
+            st.session_state.session_n_estimators, 10,
+            key="slider_n_estimators"
+        )
+        max_depth = st.slider(
+            "Max Depth", 3, 15,
+            st.session_state.session_max_depth,
+            key="slider_max_depth"
+        )
+        learning_rate = st.slider(
+            "Learning Rate", 0.01, 0.3,
+            st.session_state.session_learning_rate, 0.01,
+            key="slider_learning_rate"
+        )
+
+        if st.button("Save to My Session", key="save_session_hyperparams"):
+            # Only write to this user's session_state — never touch the shared model
+            st.session_state.session_n_estimators = n_estimators
+            st.session_state.session_max_depth = max_depth
+            st.session_state.session_learning_rate = learning_rate
+            st.success(
+                "✅ Saved to your session. Visible only to you — resets on tab close."
+            )
+
         st.markdown("</div>", unsafe_allow_html=True)
-    
+
     with col2:
         st.markdown("""
         <div class="analytics-card">
             <h4>🔄 Update Frequency</h4>
         """, unsafe_allow_html=True)
-        
+
         update_freq = st.selectbox(
             "Data Update Frequency",
             ["Hourly", "Daily", "Weekly", "Manual"]
         )
-        
+
         auto_retrain = st.checkbox("Auto-retrain model weekly", value=True)
-        
-        if st.button("Save Settings"):
+
+        if st.button("Save Settings", key="save_update_settings"):
             st.session_state.cache_manager.update_settings({
                 'update_frequency': update_freq,
                 'auto_retrain': auto_retrain
             })
             st.success("✅ Settings saved!")
-        
+
         st.markdown("</div>", unsafe_allow_html=True)
+
+    # ── Admin-only retrain section ────────────────────────────────────────
+    st.markdown("---")
+    with st.expander("🔐 Admin — Model Retraining", expanded=False):
+        st.warning(
+            "⚠️ Retraining replaces the shared model for **all users**. "
+            "Only proceed if you are the app owner."
+        )
+        admin_password = st.text_input(
+            "Admin password", type="password", key="admin_pw_input"
+        )
+        _admin_secret = os.environ.get("ADMIN_PASSWORD", "")
+
+        if st.button("🔁 Retrain Model Now", key="manual_retrain"):
+            if not _admin_secret:
+                st.error(
+                    "❌ ADMIN_PASSWORD is not configured. "
+                    "Add it under App Secrets in Streamlit Cloud to enable retraining."
+                )
+            elif admin_password != _admin_secret:
+                st.error("❌ Incorrect password.")
+            else:
+                today_str = datetime.now().strftime('%Y-%m-%d')
+                predictions_cache_file = os.path.join('cache', f'predictions_{today_str}.csv')
+                if os.path.exists(predictions_cache_file):
+                    os.remove(predictions_cache_file)
+                st.session_state.today_predictions = None
+                with st.spinner("Retraining model — this may take a few minutes..."):
+                    initialize_system()
+                st.session_state['needs_retrain'] = False
 
 def _assert_pipeline(condition: bool, message: str, st_error: bool = True):
     """Raise a clear error if a pipeline integrity check fails"""
