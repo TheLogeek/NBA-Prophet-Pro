@@ -798,9 +798,45 @@ def show_model_performance_page():
             st.plotly_chart(fig, use_container_width=True)
 
 def show_data_management_page():
-    """Display data management page"""
+    """Display data management page — restricted to admin users only."""
     st.markdown("### 💾 Data Management")
-    
+
+    # ── Admin gate — same logic as the retrain section in Settings ────────
+    _admin_secret = os.environ.get("ADMIN_PASSWORD", "")
+
+    # Keep auth state for this page across reruns within the same session
+    if "dm_authenticated" not in st.session_state:
+        st.session_state.dm_authenticated = False
+
+    if not st.session_state.dm_authenticated:
+        st.warning(
+            "🔐 This page is restricted to the app owner. "
+            "Enter the admin password to continue."
+        )
+        admin_password = st.text_input(
+            "Admin password", type="password", key="dm_admin_pw_input"
+        )
+        if st.button("Unlock", key="dm_unlock"):
+            if not _admin_secret:
+                st.error(
+                    "❌ ADMIN_PASSWORD is not configured. "
+                    "Add it under App Secrets in Streamlit Cloud to enable this page."
+                )
+            elif admin_password != _admin_secret:
+                st.error("❌ Incorrect password.")
+            else:
+                st.session_state.dm_authenticated = True
+                st.rerun()
+        return  # Stop rendering the rest of the page until authenticated
+
+    # ── Authenticated — show a lock indicator and a sign-out button ───────
+    st.success("🔓 Authenticated as admin.")
+    if st.button("🔒 Lock Page", key="dm_lock"):
+        st.session_state.dm_authenticated = False
+        st.rerun()
+
+    st.markdown("---")
+
     col1, col2 = st.columns(2)
     
     with col1:
