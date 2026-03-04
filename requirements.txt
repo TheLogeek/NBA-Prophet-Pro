@@ -1,0 +1,14 @@
+streamlit
+pandas
+numpy
+scikit-learn
+xgboost
+lightgbm
+plotly
+beautifulsoup4
+requests
+joblib
+python-dotenv
+ratelimit
+pytz
+openpyxl
