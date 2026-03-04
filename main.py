@@ -213,6 +213,62 @@ def load_css():
             text-align: center;
         }
         
+        /* ── Mobile responsiveness for prediction cards ── */
+        @media (max-width: 768px) {
+            .prediction-card {
+                padding: 16px 12px;
+                border-radius: 14px;
+            }
+
+            /* Stack away / VS / home vertically on small screens */
+            .pred-matchup-row {
+                flex-direction: column !important;
+                gap: 8px;
+            }
+
+            .pred-matchup-row > div {
+                flex: unset !important;
+                width: 100% !important;
+            }
+
+            /* Shrink the big VS text */
+            .pred-vs-text {
+                font-size: 2rem !important;
+            }
+
+            /* Shrink team score font */
+            .team-score {
+                font-size: 1.8rem !important;
+            }
+
+            /* Metrics grid: 2 columns instead of 5 on mobile */
+            .pred-metrics-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 8px !important;
+            }
+
+            .metric-container {
+                padding: 12px 8px;
+                border-radius: 10px;
+            }
+
+            .metric-value {
+                font-size: 1.4rem !important;
+            }
+
+            .metric-label {
+                font-size: 0.75rem;
+            }
+
+            .pred-prob-bar {
+                margin: 8px 0 14px !important;
+            }
+
+            .app-title {
+                font-size: 2.2rem !important;
+            }
+        }
+
         /* Animations */
         @keyframes pulse {
             0% { transform: scale(1); }
@@ -588,14 +644,14 @@ def show_predictions_page():
                 with st.container():
                     st.markdown(
                         f'<div class="prediction-card">'
-                        f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+                        f'<div class="pred-matchup-row" style="display:flex;justify-content:space-between;align-items:center;">'
                         f'<div style="text-align:center;flex:1;">'
                         f'<h2 style="{away_name_style}">{away_team}{trophy_away}</h2>'
                         f'<div class="team-score">{away_score:.1f}{away_adj_html}</div>'
                         f'<p style="color:#666;">Away &nbsp;·&nbsp; {away_win_pct}</p>'
                         f'</div>'
                         f'<div style="text-align:center;flex:0.5;">'
-                        f'<h1 style="font-size:4rem;color:#667eea;">VS</h1>'
+                        f'<h1 class="pred-vs-text" style="font-size:4rem;color:#667eea;">VS</h1>'
                         f'<div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:5px 15px;border-radius:50px;color:white;">{game_time}</div>'
                         f'<div style="margin-top:8px;">{star_html}</div>'
                         f'<div style="font-size:0.75rem;color:#888;margin-top:2px;">{star_label} Conviction</div>'
@@ -608,11 +664,11 @@ def show_predictions_page():
                         f'<p style="color:#666;">Home &nbsp;·&nbsp; {home_win_pct}</p>'
                         f'</div>'
                         f'</div>'
-                        f'<div style="margin:12px 0 20px;height:8px;border-radius:4px;background:#eee;overflow:hidden;display:flex;">'
+                        f'<div class="pred-prob-bar" style="margin:12px 0 20px;height:8px;border-radius:4px;background:#eee;overflow:hidden;display:flex;">'
                         f'<div style="width:{away_bar_w};background:#fa709a;"></div>'
                         f'<div style="width:{home_bar_w};background:#43e97b;"></div>'
                         f'</div>'
-                        f'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:15px;margin-top:10px;">'
+                        f'<div class="pred-metrics-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:15px;margin-top:10px;">'
                         f'<div class="metric-container"><div class="metric-value">{pred_total:.1f}</div><div class="metric-label">Blended Total</div></div>'
                         f'<div class="metric-container"><div class="metric-value" style="font-size:1.4rem;">{direct_str}</div><div class="metric-label">Model Total</div></div>'
                         f'<div class="metric-container"><div class="metric-value" style="font-size:1.4rem;">{sum_str}</div><div class="metric-label">H+A Sum</div></div>'
