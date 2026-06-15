@@ -17,7 +17,7 @@
 1. **Clone the repository**
 ```bash
 git clone https://github.com/yourusername/nba-prophet-pro.git
-cd nba-predictor-pro
+cd nba-prophet-pro
 ```
 
 1. Create virtual environment
