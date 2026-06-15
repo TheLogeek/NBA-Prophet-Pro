@@ -1,5 +1,8 @@
 # NBA Prophet Pro - Setup Instructions
 
+> ⚡ **Deployment Architecture:** Optimized for localized execution to manage multi-season data scraping and high-compute ensemble training with zero server costs[span_7](start_span)[span_7](end_span).
+
+
 ## 🏀 Advanced NBA Game Prediction System
 
 ### System Requirements
@@ -116,7 +119,7 @@ Caching Strategy
 
 Model Features
 
-· 50+ engineered features including:
+· 200+ engineered features including:
   · Rolling averages (5, 10, 20 games)
   · Team efficiency ratings
   · Pace of play metrics
