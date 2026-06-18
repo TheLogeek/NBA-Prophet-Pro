@@ -8,7 +8,7 @@
 ### System Requirements
 
 - Python 3.8 or higher
-- 8GB RAM minimum (16GB recommended)
+- 4GB RAM minimum
 - Internet connection for data fetching
 - ESPN access (for historical data)
 
